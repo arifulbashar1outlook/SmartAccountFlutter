@@ -1,0 +1,5 @@
+{
+  "name": "Expense & Savings",
+  "description": "A comprehensive financial tracking application that manages daily expenses, income, and savings. Features AI-powered financial insights using Gemini to analyze spending habits.",
+  "requestFramePermissions": []
+}
