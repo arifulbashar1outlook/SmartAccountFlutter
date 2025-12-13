@@ -3,6 +3,9 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOu
 import { getDatabase, ref, set, get, child } from "firebase/database";
 import { Transaction } from "../types";
 
+// Helper to check if a string is non-empty
+const hasValue = (val: string | undefined) => val && val !== "" && val !== "undefined";
+
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_API_KEY,
   authDomain: process.env.FIREBASE_AUTH_DOMAIN,
@@ -13,18 +16,19 @@ const firebaseConfig = {
   databaseURL: process.env.FIREBASE_DATABASE_URL
 };
 
-// Initialize Firebase only if config exists
+// Initialize Firebase only if config exists and is valid
 let app;
 let auth: any = null;
 let db: any = null;
 
 try {
-  if (process.env.FIREBASE_API_KEY) {
+  // Check if critical keys exist before initializing
+  if (hasValue(process.env.FIREBASE_API_KEY) && hasValue(process.env.FIREBASE_AUTH_DOMAIN)) {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
     db = getDatabase(app);
   } else {
-    console.warn("Firebase config missing. Cloud sync will be disabled.");
+    console.warn("Firebase config missing or incomplete. Cloud sync features will be disabled. Please check your .env file or deployment settings.");
   }
 } catch (error) {
   console.error("Firebase initialization failed:", error);
@@ -33,7 +37,10 @@ try {
 export { auth, db };
 
 export const signInWithGoogle = async () => {
-  if (!auth) throw new Error("Firebase not initialized");
+  if (!auth) {
+    alert("Firebase is not configured. Please add your FIREBASE_API_KEY and other credentials to the environment variables.");
+    throw new Error("Firebase not initialized");
+  }
   const provider = new GoogleAuthProvider();
   try {
     const result = await signInWithPopup(auth, provider);
