@@ -60,6 +60,7 @@ import BottomNavigation from './components/BottomNavigation';
 import SalaryManager from './components/SalaryManager';
 import ConfigModal from './components/ConfigModal';
 import LendingView from './components/LendingView';
+import BazarView from './components/BazarView';
 
 const App: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -225,6 +226,21 @@ const App: React.FC = () => {
     }
   };
 
+  const handleUpdateTransaction = async (updatedTx: Transaction) => {
+    if (user && db) {
+      // Update in Cloud
+      try {
+        await db.collection('users').doc(user.uid).collection('transactions').doc(updatedTx.id).update(updatedTx);
+      } catch (e) {
+        console.error("Error updating in cloud", e);
+        alert("Failed to update transaction in cloud.");
+      }
+    } else {
+      // Update Locally
+      setTransactions(prev => prev.map(t => t.id === updatedTx.id ? updatedTx : t));
+    }
+  };
+
   const handleDeleteTransaction = async (id: string) => {
     if (user && db) {
       // Delete from Cloud
@@ -362,13 +378,6 @@ const App: React.FC = () => {
     };
   };
 
-  const getGroupKey = (dateStr: string) => {
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) return new Date().toISOString();
-    date.setSeconds(0, 0); 
-    return date.toISOString();
-  };
-
   // ------------------------------------------------------------------
   // Views
   // ------------------------------------------------------------------
@@ -393,189 +402,7 @@ const App: React.FC = () => {
     </div>
   );
 
-  const BazarPage = () => {
-    const [item, setItem] = useState('');
-    const [amount, setAmount] = useState('');
-    const [paidFrom, setPaidFrom] = useState<AccountType>('cash');
-    const [dateTime, setDateTime] = useState(new Date().toISOString().slice(0, 16));
-
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-    const monthName = now.toLocaleDateString('en-US', { month: 'long' });
-
-    const bazarTransactions = transactions.filter(t => {
-      if (!t.date || t.category !== Category.BAZAR) return false;
-      const d = new Date(t.date);
-      if (isNaN(d.getTime())) return false;
-      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-    });
-
-    const totalBazarSpend = bazarTransactions.reduce((sum, t) => sum + t.amount, 0);
-
-    const handleQuickAdd = (e: React.FormEvent) => {
-      e.preventDefault();
-      if(!item || !amount) return;
-      
-      const finalDate = dateTime ? new Date(dateTime).toISOString() : new Date().toISOString();
-
-      handleAddTransaction({
-        description: item,
-        amount: parseFloat(amount),
-        type: 'expense',
-        category: Category.BAZAR,
-        date: finalDate,
-        accountId: paidFrom
-      });
-      setItem('');
-      setAmount('');
-    };
-
-    const groupedBazar = useMemo(() => {
-      const groups: Record<string, Transaction[]> = {};
-      bazarTransactions.forEach(t => {
-        const key = getGroupKey(t.date);
-        if (!groups[key]) groups[key] = [];
-        groups[key].push(t);
-      });
-      return groups;
-    }, [bazarTransactions]);
-
-    const sortedKeys = Object.keys(groupedBazar).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-
-    return (
-      <div className="max-w-2xl mx-auto px-4 py-8 pb-24">
-         <div className="mb-6 flex items-center justify-between">
-           <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Bazar List</h2>
-            <p className="text-gray-500 dark:text-gray-400">Add & View Daily Items</p>
-           </div>
-           <div className="text-right">
-             <p className="text-xs text-gray-500 dark:text-gray-400 uppercase">Total ({monthName})</p>
-             <p className="text-xl font-bold text-rose-600 dark:text-rose-400">Tk {totalBazarSpend.toLocaleString()}</p>
-           </div>
-         </div>
-
-         <form onSubmit={handleQuickAdd} className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 mb-8">
-            <h3 className="font-medium text-gray-800 dark:text-white mb-3 flex items-center gap-2">
-              <Plus className="w-4 h-4 text-emerald-500" />
-              Quick Add Item
-            </h3>
-            <div className="flex flex-col gap-3">
-               <div className="flex gap-2">
-                 <input 
-                   type="text" 
-                   value={item}
-                   onChange={(e) => setItem(e.target.value)}
-                   placeholder="Item name (e.g. Vegetables)"
-                   className="flex-[2] px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                   required
-                 />
-                 <input 
-                   type="number" 
-                   value={amount}
-                   onChange={(e) => setAmount(e.target.value)}
-                   placeholder="Cost"
-                   className="flex-1 min-w-[80px] px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                   required
-                   step="0.01"
-                 />
-               </div>
-               
-               <div className="flex flex-col sm:flex-row gap-3">
-                 <div className="flex-1 flex items-center gap-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg px-3 py-1.5 border border-gray-200 dark:border-gray-600">
-                    <CalendarDays className="w-4 h-4 text-gray-400" />
-                    <input 
-                      type="datetime-local" 
-                      value={dateTime}
-                      onChange={(e) => setDateTime(e.target.value)}
-                      className="bg-transparent border-none outline-none text-sm text-gray-700 dark:text-gray-200 w-full"
-                      required
-                    />
-                 </div>
-
-                 <div className="flex items-center gap-2">
-                   <select
-                      value={paidFrom}
-                      onChange={(e) => setPaidFrom(e.target.value as AccountType)}
-                      className="text-sm px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white w-full sm:w-auto"
-                    >
-                      <option value="cash">Cash 💵</option>
-                      <option value="salary">Salary Acc 🏦</option>
-                      <option value="savings">Savings Acc 🐷</option>
-                    </select>
-                    <button type="submit" className="ml-auto bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 text-sm font-medium whitespace-nowrap">
-                      Add
-                    </button>
-                 </div>
-               </div>
-            </div>
-         </form>
-
-         <div className="space-y-6">
-           <h3 className="font-medium text-gray-500 dark:text-gray-400 text-sm uppercase">Recent Shopping History</h3>
-           {bazarTransactions.length === 0 ? (
-             <div className="text-center py-10 text-gray-400 dark:text-gray-600">
-               <ShoppingBag className="w-12 h-12 mx-auto mb-2 opacity-50" />
-               <p>No bazar items yet this month</p>
-             </div>
-           ) : (
-             <div className="space-y-6">
-                {sortedKeys.map(timeKey => {
-                  const groupItems = groupedBazar[timeKey];
-                  const groupTotal = groupItems.reduce((sum, t) => sum + t.amount, 0);
-                  const dateObj = new Date(timeKey);
-                  
-                  return (
-                    <div key={timeKey}>
-                      <div className="flex justify-between items-center mb-2 pl-1 sticky top-0 bg-gray-50 dark:bg-gray-900 py-1 z-10 backdrop-blur-sm bg-opacity-90 dark:bg-opacity-90">
-                        <div className="flex items-center gap-2">
-                           <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                             {dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                           </h4>
-                           <span className="text-[10px] text-gray-400 dark:text-gray-500 bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded flex items-center gap-1">
-                              <Clock size={10} />
-                              {dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                           </span>
-                        </div>
-                        <span className="text-xs font-bold text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded-full">
-                          Tk {groupTotal.toFixed(2)}
-                        </span>
-                      </div>
-                      
-                      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-                        {groupItems
-                          .map(t => (
-                          <div key={t.id} className="flex items-center justify-between p-3 border-b border-gray-100 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group">
-                              <div className="flex items-center gap-3">
-                                <div className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                                  <ShoppingBag size={12} />
-                                </div>
-                                <div>
-                                  <p className="text-sm font-medium text-gray-900 dark:text-white">{t.description}</p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-3">
-                                <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">Tk {t.amount.toFixed(2)}</span>
-                                <button 
-                                  onClick={() => handleDeleteTransaction(t.id)}
-                                  className="text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-             </div>
-           )}
-         </div>
-      </div>
-    );
-  };
+  // BazarPage has been moved to components/BazarView.tsx to handle state properly
 
   const BazarReportPage = () => {
       const now = new Date();
@@ -1072,7 +899,7 @@ const App: React.FC = () => {
       {/* Main Content Area */}
       <main className="transition-all duration-300">
         {activeTab === 'input' && <InputPage />}
-        {activeTab === 'bazar' && <BazarPage />}
+        {activeTab === 'bazar' && <BazarView transactions={transactions} onAddTransaction={handleAddTransaction} onUpdateTransaction={handleUpdateTransaction} onDeleteTransaction={handleDeleteTransaction} />}
         {activeTab === 'bazar-report' && <BazarReportPage />}
         {activeTab === 'lending' && <LendingView transactions={transactions} onAddTransaction={handleAddTransaction} onDeleteTransaction={handleDeleteTransaction} />}
         {activeTab === 'history' && <HistoryPage />}

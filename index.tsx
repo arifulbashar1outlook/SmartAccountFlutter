@@ -12,7 +12,7 @@ interface ErrorBoundaryState {
 }
 
 // Simple Error Boundary to catch runtime crashes and display them
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = {
@@ -48,6 +48,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
       );
     }
 
+    // Fix: Access props correctly from Component instance
     return this.props.children;
   }
 }

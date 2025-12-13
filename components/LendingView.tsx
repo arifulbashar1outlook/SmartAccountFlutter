@@ -8,7 +8,8 @@ import {
   ArrowRight,
   UserMinus, 
   UserPlus,
-  ChevronRight
+  ChevronRight,
+  CalendarDays
 } from 'lucide-react';
 import { Transaction, Category, AccountType } from '../types';
 
@@ -26,6 +27,7 @@ const LendingView: React.FC<LendingViewProps> = ({ transactions, onAddTransactio
   const [amount, setAmount] = useState('');
   const [account, setAccount] = useState<AccountType>('cash');
   const [formMode, setFormMode] = useState<'lend' | 'recover'>('lend');
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
 
   // New Person State
   const [isAddingNew, setIsAddingNew] = useState(false);
@@ -102,7 +104,7 @@ const LendingView: React.FC<LendingViewProps> = ({ transactions, onAddTransactio
       type,
       category: Category.LENDING,
       description,
-      date: new Date().toISOString(),
+      date: date,
       accountId: account
     });
     
@@ -264,33 +266,46 @@ const LendingView: React.FC<LendingViewProps> = ({ transactions, onAddTransactio
                   </button>
               </div>
 
-              <div className="flex gap-2">
-                 <div className="relative flex-1">
-                     <span className="absolute left-3 top-2.5 text-gray-500 dark:text-gray-400 text-xs font-bold">Tk</span>
-                     <input 
-                       type="number" 
-                       value={amount}
-                       onChange={e => setAmount(e.target.value)}
-                       placeholder="0.00"
-                       className="w-full pl-8 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
-                     />
+              <div className="flex flex-col gap-3">
+                 <div className="flex gap-2">
+                     <div className="relative flex-1">
+                        <CalendarDays className="absolute left-3 top-2.5 w-4 h-4 text-gray-500 dark:text-gray-400" />
+                        <input 
+                           type="date" 
+                           value={date}
+                           onChange={e => setDate(e.target.value)}
+                           className="w-full pl-9 pr-2 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-transparent text-gray-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                     </div>
+                     <select
+                        value={account}
+                        onChange={e => setAccount(e.target.value as AccountType)}
+                        className="w-28 sm:w-36 px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-transparent text-gray-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                     >
+                         <option value="cash">Cash</option>
+                         <option value="salary">Salary</option>
+                         <option value="savings">Savings</option>
+                     </select>
                  </div>
-                 <select
-                    value={account}
-                    onChange={e => setAccount(e.target.value as AccountType)}
-                    className="w-24 sm:w-32 px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-transparent text-gray-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                 >
-                     <option value="cash">Cash</option>
-                     <option value="salary">Salary</option>
-                     <option value="savings">Savings</option>
-                 </select>
-                 <button 
-                    onClick={handleTransaction}
-                    disabled={!amount}
-                    className={`px-4 py-2 rounded-lg text-white font-medium disabled:opacity-50 transition-colors ${formMode === 'lend' ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}
-                 >
-                     <Plus className="w-5 h-5" />
-                 </button>
+                 <div className="flex gap-2">
+                     <div className="relative flex-1">
+                         <span className="absolute left-3 top-2.5 text-gray-500 dark:text-gray-400 text-xs font-bold">Tk</span>
+                         <input 
+                           type="number" 
+                           value={amount}
+                           onChange={e => setAmount(e.target.value)}
+                           placeholder="0.00"
+                           className="w-full pl-8 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                         />
+                     </div>
+                     <button 
+                        onClick={handleTransaction}
+                        disabled={!amount}
+                        className={`px-4 py-2 rounded-lg text-white font-medium disabled:opacity-50 transition-colors ${formMode === 'lend' ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}
+                     >
+                         <Plus className="w-5 h-5" />
+                     </button>
+                 </div>
               </div>
           </div>
 

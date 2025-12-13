@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, ArrowDownCircle, Wallet, ArrowRight } from 'lucide-react';
+import { Plus, ArrowDownCircle, Wallet, ArrowRight, CalendarDays } from 'lucide-react';
 import { Transaction, AccountType, Category } from '../types';
 
 interface SalaryManagerProps {
@@ -17,6 +17,9 @@ const SalaryManager: React.FC<SalaryManagerProps> = ({ onAddTransaction }) => {
   const [receivedDesc, setReceivedDesc] = useState('');
   const [receivedDestination, setReceivedDestination] = useState<AccountType>('cash');
 
+  // Shared Date State
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+
   const handleAddSalary = () => {
     if (!salaryAmount) return;
 
@@ -31,7 +34,7 @@ const SalaryManager: React.FC<SalaryManagerProps> = ({ onAddTransaction }) => {
       type: 'income',
       category: Category.SALARY,
       description: 'Monthly Salary',
-      date: new Date().toISOString().split('T')[0],
+      date: date,
       accountId: 'salary' // Fixed to Salary Account as requested
     });
 
@@ -45,7 +48,7 @@ const SalaryManager: React.FC<SalaryManagerProps> = ({ onAddTransaction }) => {
       type: 'income',
       category: Category.OTHER,
       description: receivedDesc || 'Received Money',
-      date: new Date().toISOString().split('T')[0],
+      date: date,
       accountId: receivedDestination
     });
     setReceivedAmount('');
@@ -86,9 +89,15 @@ const SalaryManager: React.FC<SalaryManagerProps> = ({ onAddTransaction }) => {
           <div className="space-y-4">
             <div>
                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Enter Monthly Salary</label>
-               <div className="flex gap-2">
+               <div className="flex flex-col sm:flex-row gap-2">
+                  <input 
+                      type="date" 
+                      value={date}
+                      onChange={(e) => setDate(e.target.value)}
+                      className="px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                  />
                   <div className="relative flex-1">
-                    <span className="absolute left-3 top-2.5 text-gray-500 dark:text-gray-400 font-bold text-xs pt-0.5">Tk</span>
+                    <span className="absolute left-3 top-3 text-gray-500 dark:text-gray-400 font-bold text-xs pt-0.5">Tk</span>
                     <input
                         type="number"
                         value={salaryAmount}
@@ -100,7 +109,7 @@ const SalaryManager: React.FC<SalaryManagerProps> = ({ onAddTransaction }) => {
                   <button
                     onClick={handleAddSalary}
                     disabled={!salaryAmount}
-                    className="px-6 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-indigo-200 dark:shadow-none active:scale-[0.98] flex items-center gap-2"
+                    className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-indigo-200 dark:shadow-none active:scale-[0.98] flex items-center justify-center gap-2 sm:w-auto w-full"
                   >
                     <Plus className="w-5 h-5" />
                     Add
@@ -117,18 +126,29 @@ const SalaryManager: React.FC<SalaryManagerProps> = ({ onAddTransaction }) => {
         {/* --- RECEIVED (GENERAL) TAB --- */}
         {activeTab === 'received' && (
           <div className="space-y-4">
-             <div>
-               <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Amount</label>
-               <div className="relative">
-                  <span className="absolute left-3 top-2.5 text-gray-500 dark:text-gray-400 font-bold text-xs pt-0.5">Tk</span>
-                  <input
-                    type="number"
-                    value={receivedAmount}
-                    onChange={(e) => setReceivedAmount(e.target.value)}
-                    placeholder="0.00"
-                    className="w-full pl-9 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  />
-               </div>
+             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                 <div>
+                   <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Date</label>
+                   <input 
+                      type="date" 
+                      value={date}
+                      onChange={(e) => setDate(e.target.value)}
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                   />
+                 </div>
+                 <div>
+                   <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Amount</label>
+                   <div className="relative">
+                      <span className="absolute left-3 top-2.5 text-gray-500 dark:text-gray-400 font-bold text-xs pt-0.5">Tk</span>
+                      <input
+                        type="number"
+                        value={receivedAmount}
+                        onChange={(e) => setReceivedAmount(e.target.value)}
+                        placeholder="0.00"
+                        className="w-full pl-9 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      />
+                   </div>
+                 </div>
              </div>
 
              <div className="grid grid-cols-2 gap-3">

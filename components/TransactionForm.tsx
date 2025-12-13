@@ -84,17 +84,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransaction }) =
         >
           Expense
         </button>
-        <button
-          type="button"
-          onClick={() => setType('income')}
-          className={`flex-1 min-w-[70px] py-2 text-xs md:text-sm font-medium rounded-md transition-colors whitespace-nowrap ${
-            type === 'income' 
-              ? 'bg-white dark:bg-gray-600 text-green-600 dark:text-green-400 shadow-sm' 
-              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-          }`}
-        >
-          Income
-        </button>
+        {/* Income removed as per request */}
         <button
           type="button"
           onClick={() => setType('transfer')}
