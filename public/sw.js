@@ -1,41 +1,35 @@
-const CACHE_NAME = 'smartspend-v2';
-const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/icon.svg'
-];
+// KILL SWITCH SERVICE WORKER
+// This worker replaces the old caching worker.
+// It deletes all caches and forces network-only requests.
+
+const CACHE_NAME = 'smartspend-cleanup-final';
 
 self.addEventListener('install', (event) => {
-  self.skipWaiting(); // Force the waiting service worker to become the active service worker
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
-    })
-  );
-});
-
-self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request).then((response) => {
-      return response || fetch(event.request);
-    })
-  );
+  // Activate immediately
+  self.skipWaiting();
+  console.log('Cleanup Service Worker Installed');
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     Promise.all([
-      self.clients.claim(), // Take control of all clients immediately
+      // Take control of all pages immediately
+      self.clients.claim(),
+      // Delete ALL caches found
       caches.keys().then((keyList) => {
         return Promise.all(
           keyList.map((key) => {
-            if (key !== CACHE_NAME) {
-              return caches.delete(key);
-            }
+            console.log('Deleting old cache:', key);
+            return caches.delete(key);
           })
         );
       })
     ])
   );
+  console.log('Cleanup Service Worker Activated - Caches Cleared');
+});
+
+self.addEventListener('fetch', (event) => {
+  // Network Only - bypass cache completely
+  event.respondWith(fetch(event.request));
 });

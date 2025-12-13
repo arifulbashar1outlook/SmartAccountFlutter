@@ -4,6 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#4338ca" />
+    
+    <!-- Anti-caching headers for the HTML file itself -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+
     <title>SmartSpend Tracker</title>
     
     <!-- PWA Setup -->
@@ -40,13 +46,24 @@
         font-family: 'Inter', sans-serif;
       }
     </style>
-    <!-- Service Worker Cleanup: Force unregister to fix caching issues -->
+    <!-- Service Worker Cleanup: Force unregister and Reload -->
     <script>
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          let unregisterPromises = [];
           for(let registration of registrations) {
-            registration.unregister().then(function(boolean) {
-                console.log('Service Worker unregistered: ', boolean);
+            unregisterPromises.push(registration.unregister());
+          }
+          
+          if (unregisterPromises.length > 0) {
+            Promise.all(unregisterPromises).then(function() {
+              console.log('All Service Workers unregistered.');
+              // Only reload if we haven't just done it (prevents infinite loops)
+              if (!sessionStorage.getItem('sw_cleanup_done')) {
+                sessionStorage.setItem('sw_cleanup_done', 'true');
+                console.log('Reloading to get fresh content...');
+                window.location.reload();
+              }
             });
           }
         });
