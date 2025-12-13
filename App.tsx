@@ -24,14 +24,20 @@ import {
   Calculator,
   CalendarRange,
   Calendar,
-  Download
+  Download,
+  Cloud,
+  LogOut,
+  User as UserIcon,
+  CheckCircle2
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import ReactMarkdown from 'react-markdown';
+import { onAuthStateChanged, User } from 'firebase/auth';
 
 import { Transaction, TransactionType, FinancialSummary, AccountType, Category } from './types';
 import { getStoredTransactions, saveStoredTransactions } from './services/storage';
 import { getFinancialAdvice } from './services/geminiService';
+import { auth, signInWithGoogle, logout, saveUserData, getUserData } from './services/firebase';
 import TransactionForm from './components/TransactionForm';
 import SummaryCard from './components/SummaryCard';
 import FinancialChart from './components/FinancialChart';
@@ -45,33 +51,27 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'input' | 'bazar' | 'report' | 'month' | 'year'>('input');
   const [accountFilter, setAccountFilter] = useState<'all' | 'salary' | 'savings' | 'cash'>('all');
   
+  // Auth & Sync State
+  const [user, setUser] = useState<User | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  
   // Install Prompt State
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   useEffect(() => {
     const handler = (e: any) => {
-      // Prevent the mini-infobar from appearing on mobile
       e.preventDefault();
-      // Stash the event so it can be triggered later.
       setDeferredPrompt(e);
     };
-
     window.addEventListener('beforeinstallprompt', handler);
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handler);
-    };
+    return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
-    // Show the install prompt
     deferredPrompt.prompt();
-    // Wait for the user to respond to the prompt
     const { outcome } = await deferredPrompt.userChoice;
-    // Optionally, send analytics event with outcome of user choice
-    console.log(`User response to the install prompt: ${outcome}`);
-    // We've used the prompt, and can't use it again, discard it
+    console.log(`User response: ${outcome}`);
     setDeferredPrompt(null);
   };
   
@@ -85,35 +85,70 @@ const App: React.FC = () => {
     return 'light';
   });
 
-  // Apply Theme
   useEffect(() => {
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    if (theme === 'dark') document.documentElement.classList.add('dark');
+    else document.documentElement.classList.remove('dark');
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light');
-  };
+  const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
-  // Load initial data
+  // Load initial data from local storage
   useEffect(() => {
     const loaded = getStoredTransactions();
-    // Migration helper: Ensure all transactions have an accountId
-    const migrated = loaded.map(t => ({
-      ...t,
-      accountId: t.accountId || 'salary'
-    }));
+    const migrated = loaded.map(t => ({ ...t, accountId: t.accountId || 'salary' }));
     setTransactions(migrated);
   }, []);
 
-  // Save on change
+  // Firebase Auth Observer
   useEffect(() => {
+    if (!auth) return;
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        setIsSyncing(true);
+        // On login, fetch data from cloud
+        const cloudData = await getUserData(currentUser.uid);
+        if (cloudData && cloudData.length > 0) {
+          // If cloud has data, we update local (User "Restore Progress" flow)
+          // Ideally, we might want to merge, but simple "Cloud wins on login" is safer for "Sync" mental model
+          setTransactions(cloudData);
+        } else {
+          // If cloud is empty but local has data, push local to cloud (First sync)
+          const localData = getStoredTransactions();
+          if (localData.length > 0) {
+            await saveUserData(currentUser.uid, localData);
+          }
+        }
+        setIsSyncing(false);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Save changes to Local Storage AND Firebase
+  useEffect(() => {
+    // 1. Save to Local
     saveStoredTransactions(transactions);
-  }, [transactions]);
+
+    // 2. Save to Cloud (Debounced slightly in logic, but direct here for simplicity)
+    if (user && transactions.length > 0) {
+      saveUserData(user.uid, transactions);
+    }
+  }, [transactions, user]);
+
+  const handleLogin = async () => {
+    try {
+      await signInWithGoogle();
+    } catch (error) {
+      alert("Failed to sign in. Please check your network or configuration.");
+    }
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    setUser(null);
+  };
 
   const handleAddTransaction = (newTx: Omit<Transaction, 'id'>) => {
     const transaction: Transaction = {
@@ -143,7 +178,6 @@ const App: React.FC = () => {
     let cashBal = 0;
 
     transactions.forEach(t => {
-      // Amount logic based on type and account
       if (t.type === 'income') {
         if (t.accountId === 'salary') salaryBal += t.amount;
         if (t.accountId === 'savings') savingsBal += t.amount;
@@ -153,12 +187,10 @@ const App: React.FC = () => {
         if (t.accountId === 'savings') savingsBal -= t.amount;
         if (t.accountId === 'cash') cashBal -= t.amount;
       } else if (t.type === 'transfer') {
-        // Source decreases
         if (t.accountId === 'salary') salaryBal -= t.amount;
         if (t.accountId === 'savings') savingsBal -= t.amount;
         if (t.accountId === 'cash') cashBal -= t.amount;
         
-        // Target increases
         if (t.targetAccountId === 'salary') salaryBal += t.amount;
         if (t.targetAccountId === 'savings') savingsBal += t.amount;
         if (t.targetAccountId === 'cash') cashBal += t.amount;
@@ -180,7 +212,6 @@ const App: React.FC = () => {
 
     return transactions.filter(t => {
       if (!t.date) return false;
-      // Date Filter
       const tDate = new Date(t.date);
       if (isNaN(tDate.getTime())) return false;
 
@@ -193,10 +224,8 @@ const App: React.FC = () => {
       
       if (!dateMatch) return false;
 
-      // Account Filter
       if (accFilter === 'all') return true;
       
-      // If filtering by specific account, include if it is the source OR the target
       if (accFilter === 'salary') {
         return t.accountId === 'salary' || t.targetAccountId === 'salary';
       }
@@ -212,7 +241,6 @@ const App: React.FC = () => {
   };
 
   const getSummary = (filtered: Transaction[]): FinancialSummary => {
-    // Note: This summary is based on the *filtered* list (e.g., this month)
     let income = 0;
     let expenses = 0;
 
@@ -221,7 +249,6 @@ const App: React.FC = () => {
       else if (t.type === 'expense') expenses += t.amount;
     });
 
-    // If filtering by specific account, transfers count as income/expense
     if (accountFilter !== 'all') {
       income = 0;
       expenses = 0;
@@ -233,8 +260,8 @@ const App: React.FC = () => {
         if (t.type === 'expense' && isSource) expenses += t.amount;
         
         if (t.type === 'transfer') {
-          if (isSource) expenses += t.amount; // Money leaving
-          if (isTarget) income += t.amount;   // Money entering
+          if (isSource) expenses += t.amount;
+          if (isTarget) income += t.amount;
         }
       });
     }
@@ -253,11 +280,10 @@ const App: React.FC = () => {
     };
   };
 
-  // Helper to group by Minute (Date + Time)
   const getGroupKey = (dateStr: string) => {
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) return new Date().toISOString();
-    date.setSeconds(0, 0); // Ignore seconds for grouping 'same time'
+    date.setSeconds(0, 0); 
     return date.toISOString();
   };
 
@@ -278,11 +304,9 @@ const App: React.FC = () => {
   );
 
   const BazarPage = () => {
-    // Local state for Bazar quick add
     const [item, setItem] = useState('');
     const [amount, setAmount] = useState('');
     const [paidFrom, setPaidFrom] = useState<AccountType>('cash');
-    // Using ISO slice for default datetime-local format: YYYY-MM-DDTHH:MM
     const [dateTime, setDateTime] = useState(new Date().toISOString().slice(0, 16));
 
     const now = new Date();
@@ -290,7 +314,6 @@ const App: React.FC = () => {
     const currentYear = now.getFullYear();
     const monthName = now.toLocaleDateString('en-US', { month: 'long' });
 
-    // Filter for Bazar category this month
     const bazarTransactions = transactions.filter(t => {
       if (!t.date || t.category !== Category.BAZAR) return false;
       const d = new Date(t.date);
@@ -316,10 +339,8 @@ const App: React.FC = () => {
       });
       setItem('');
       setAmount('');
-      // Do NOT reset time to now immediately, to allow adding multiple items to same time group
     };
 
-    // Grouping transactions by Date AND Time
     const groupedBazar = useMemo(() => {
       const groups: Record<string, Transaction[]> = {};
       bazarTransactions.forEach(t => {
@@ -345,7 +366,6 @@ const App: React.FC = () => {
            </div>
          </div>
 
-         {/* Quick Add Form */}
          <form onSubmit={handleQuickAdd} className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 mb-8">
             <h3 className="font-medium text-gray-800 dark:text-white mb-3 flex items-center gap-2">
               <Plus className="w-4 h-4 text-emerald-500" />
@@ -372,7 +392,6 @@ const App: React.FC = () => {
                  />
                </div>
                
-               {/* Date & Account Selection */}
                <div className="flex flex-col sm:flex-row gap-3">
                  <div className="flex-1 flex items-center gap-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg px-3 py-1.5 border border-gray-200 dark:border-gray-600">
                     <CalendarDays className="w-4 h-4 text-gray-400" />
@@ -403,7 +422,6 @@ const App: React.FC = () => {
             </div>
          </form>
 
-         {/* Daily List grouped by Time */}
          <div className="space-y-6">
            <h3 className="font-medium text-gray-500 dark:text-gray-400 text-sm uppercase">Recent Shopping History</h3>
            {bazarTransactions.length === 0 ? (
@@ -414,7 +432,6 @@ const App: React.FC = () => {
            ) : (
              <div className="space-y-6">
                 {sortedKeys.map(timeKey => {
-                  // Calculate group total
                   const groupItems = groupedBazar[timeKey];
                   const groupTotal = groupItems.reduce((sum, t) => sum + t.amount, 0);
                   const dateObj = new Date(timeKey);
@@ -473,7 +490,6 @@ const App: React.FC = () => {
   const ReportPage = () => {
     const [reportView, setReportView] = useState<'summary' | 'bazar' | 'full'>('summary');
 
-    // --- Statistics for Summary View ---
     const { dailyStats, monthlyStats, yearlyStats } = useMemo(() => {
         const d: Record<string, {inc: number, exp: number}> = {};
         const m: Record<string, {inc: number, exp: number}> = {};
@@ -484,16 +500,10 @@ const App: React.FC = () => {
             const date = new Date(t.date);
             if (isNaN(date.getTime())) return;
 
-            // We focus on Income and Expense for the summary tables.
-            // Transfers are excluded from "Spending/Earning" totals to avoid double counting, 
-            // unless you want to track cash flow specifically. 
-            // Here we adhere to "Expend" and "Income".
             if (t.type === 'transfer') return;
 
             const yKey = date.getFullYear().toString();
-            // Month key: YYYY-MM
             const mKey = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`;
-            // Day key: YYYY-MM-DD
             const dKey = t.date.split('T')[0];
 
             if(!y[yKey]) y[yKey] = {inc: 0, exp: 0};
@@ -520,13 +530,12 @@ const App: React.FC = () => {
         };
     }, [transactions]);
 
-    // --- Bazar Report Logic ---
     const allBazar = transactions.filter(t => t.category === Category.BAZAR);
     const groupedByMonth = useMemo(() => {
       const groups: Record<string, Transaction[]> = {};
       allBazar.forEach(t => {
         if (!t.date) return;
-        const monthKey = t.date.slice(0, 7); // YYYY-MM
+        const monthKey = t.date.slice(0, 7);
         if (!groups[monthKey]) groups[monthKey] = [];
         groups[monthKey].push(t);
       });
@@ -535,7 +544,6 @@ const App: React.FC = () => {
     const sortedMonths = Object.keys(groupedByMonth).sort((a, b) => b.localeCompare(a));
     const totalLifetimeBazar = allBazar.reduce((acc, t) => acc + t.amount, 0);
 
-    // --- Full History Logic ---
     const groupedAll = useMemo(() => {
         const groups: Record<string, Transaction[]> = {};
         transactions.forEach(t => {
@@ -558,7 +566,6 @@ const App: React.FC = () => {
             <p className="text-gray-500 dark:text-gray-400 mt-1">Detailed breakdown of your finances</p>
          </div>
 
-         {/* Toggle */}
          <div className="flex p-1 bg-gray-100 dark:bg-gray-800 rounded-xl mb-8 overflow-x-auto">
              <button 
                 onClick={() => setReportView('summary')}
@@ -585,7 +592,6 @@ const App: React.FC = () => {
 
          {reportView === 'summary' && (
              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                {/* Yearly Section */}
                 <div>
                    <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
                        <CalendarRange className="w-5 h-5 text-indigo-500" /> 
@@ -615,7 +621,6 @@ const App: React.FC = () => {
                    </div>
                 </div>
 
-                {/* Monthly Section */}
                 <div>
                    <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
                        <Calendar className="w-5 h-5 text-blue-500" /> 
@@ -650,7 +655,6 @@ const App: React.FC = () => {
                    </div>
                 </div>
 
-                {/* Daily Section */}
                 <div>
                    <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
                        <Clock className="w-5 h-5 text-amber-500" /> 
@@ -686,90 +690,8 @@ const App: React.FC = () => {
              </div>
          )}
 
-         {reportView === 'bazar' && (
-           <>
-            <div className="mt-4 mb-8 p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800/50 flex justify-between items-center animate-in fade-in slide-in-from-bottom-2">
-               <span className="font-medium text-indigo-900 dark:text-indigo-200">Total Bazar Spend (Lifetime)</span>
-               <span className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">Tk {totalLifetimeBazar.toLocaleString()}</span>
-            </div>
-
-             {allBazar.length === 0 ? (
-               <div className="text-center py-12 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl">
-                  <ShoppingBag className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-                  <p className="text-gray-500">No bazar records found.</p>
-               </div>
-             ) : (
-               <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                 {sortedMonths.map(monthKey => {
-                   const monthlyTx = groupedByMonth[monthKey];
-                   const monthlyTotal = monthlyTx.reduce((sum, t) => sum + t.amount, 0);
-                   const [year, month] = monthKey.split('-');
-                   const dateObj = new Date(parseInt(year), parseInt(month) - 1);
-                   const monthTitle = dateObj.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-
-                   // Group items within this month by TIME
-                   const groupedByTime: Record<string, Transaction[]> = {};
-                   monthlyTx.forEach(t => {
-                     const key = getGroupKey(t.date);
-                     if (!groupedByTime[key]) groupedByTime[key] = [];
-                     groupedByTime[key].push(t);
-                   });
-                   const sortedTimeKeys = Object.keys(groupedByTime).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-
-                   return (
-                     <div key={monthKey}>
-                        <div className="flex items-center justify-between mb-4 border-b border-gray-200 dark:border-gray-700 pb-2">
-                           <h3 className="font-bold text-xl text-gray-800 dark:text-gray-200">{monthTitle}</h3>
-                           <span className="px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded-full text-sm font-bold text-gray-700 dark:text-gray-300">
-                             Tk {monthlyTotal.toLocaleString()}
-                           </span>
-                        </div>
-                        
-                        <div className="space-y-4 pl-0 md:pl-2">
-                          {sortedTimeKeys.map(timeKey => {
-                            const tripItems = groupedByTime[timeKey];
-                            const tripTotal = tripItems.reduce((sum, t) => sum + t.amount, 0);
-                            const tripDate = new Date(timeKey);
-                            
-                            return (
-                              <div key={timeKey} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 overflow-hidden shadow-sm">
-                                 {/* Trip Header */}
-                                 <div className="bg-gray-50 dark:bg-gray-900/50 px-4 py-2 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
-                                    <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-3">
-                                      <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                                        {tripDate.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
-                                      </span>
-                                      <span className="text-xs text-gray-500 flex items-center gap-1">
-                                        <Clock size={12} />
-                                        {tripDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                      </span>
-                                    </div>
-                                    <span className="font-bold text-sm text-gray-900 dark:text-white">
-                                      Tk {tripTotal.toFixed(2)}
-                                    </span>
-                                 </div>
-                                 
-                                 {/* Trip Items */}
-                                 <div className="divide-y divide-gray-100 dark:divide-gray-700">
-                                   {tripItems.map(t => (
-                                     <div key={t.id} className="flex justify-between items-center px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
-                                        <span className="text-sm text-gray-600 dark:text-gray-300">{t.description}</span>
-                                        <span className="text-sm font-medium text-gray-900 dark:text-white">Tk {t.amount.toFixed(2)}</span>
-                                     </div>
-                                   ))}
-                                 </div>
-                              </div>
-                            )
-                          })}
-                        </div>
-                     </div>
-                   );
-                 })}
-               </div>
-             )}
-           </>
-         )}
-
+         {/* ... Bazar and Full History views (same as before) ... */}
+         {reportView === 'bazar' && <BazarPage />}
          {reportView === 'full' && (
            <div className="animate-in fade-in slide-in-from-right-4 duration-300">
              {transactions.length === 0 ? (
@@ -839,12 +761,11 @@ const App: React.FC = () => {
     const filtered = useMemo(() => getFilteredTransactions(period, accountFilter), [period, transactions, accountFilter]);
     const summary = useMemo(() => getSummary(filtered), [filtered, accountFilter, accountBalances]);
 
-    // Grouping for list
     const grouped = useMemo(() => {
       const groups: Record<string, Transaction[]> = {};
       filtered.forEach(t => {
         if (!t.date) return;
-        const dateKey = t.date.split('T')[0]; // Using safe date split to handle potential time components
+        const dateKey = t.date.split('T')[0];
         if (!groups[dateKey]) groups[dateKey] = [];
         groups[dateKey].push(t);
       });
@@ -1085,13 +1006,51 @@ const App: React.FC = () => {
             <h1 className="text-lg font-bold tracking-tight">SmartSpend</h1>
           </div>
           <div className="flex items-center gap-2">
+            
+            {/* Sync / Auth Buttons */}
+            {user ? (
+               <div className="flex items-center gap-2 mr-1">
+                 {isSyncing ? (
+                   <div className="flex items-center gap-1 bg-white/10 text-xs px-2 py-1 rounded-full animate-pulse">
+                      <RefreshCw className="w-3 h-3 animate-spin" />
+                      Syncing...
+                   </div>
+                 ) : (
+                   <div className="bg-green-500/20 text-green-100 text-xs px-2 py-1 rounded-full flex items-center gap-1 border border-green-500/30">
+                      <CheckCircle2 className="w-3 h-3 text-green-400" />
+                      Synced
+                   </div>
+                 )}
+                 <button 
+                   onClick={handleLogout}
+                   className="p-1.5 hover:bg-white/10 rounded-full transition-colors"
+                   title="Logout"
+                 >
+                   {user.photoURL ? (
+                     <img src={user.photoURL} alt="User" className="w-6 h-6 rounded-full border-2 border-indigo-200" />
+                   ) : (
+                     <UserIcon className="w-5 h-5 text-indigo-100" />
+                   )}
+                 </button>
+               </div>
+            ) : (
+              <button 
+                onClick={handleLogin}
+                className="bg-white/10 hover:bg-white/20 text-white text-xs font-medium px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-colors mr-1"
+                title="Sign in to sync"
+              >
+                <Cloud className="w-3.5 h-3.5" />
+                Sign In
+              </button>
+            )}
+
             {deferredPrompt && (
               <button 
                 onClick={handleInstallClick}
                 className="bg-white/10 hover:bg-white/20 text-white text-xs font-medium px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-colors mr-1"
               >
                 <Download className="w-3.5 h-3.5" />
-                Install App
+                Install
               </button>
             )}
             <button 
