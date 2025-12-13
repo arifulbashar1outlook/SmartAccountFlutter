@@ -9,17 +9,20 @@ import {
   UserMinus, 
   UserPlus,
   ChevronRight,
-  CalendarDays
+  CalendarDays,
+  X,
+  Check
 } from 'lucide-react';
 import { Transaction, Category, AccountType } from '../types';
 
 interface LendingViewProps {
   transactions: Transaction[];
   onAddTransaction: (t: Omit<Transaction, 'id'>) => void;
+  onUpdateTransaction: (t: Transaction) => void;
   onDeleteTransaction: (id: string) => void;
 }
 
-const LendingView: React.FC<LendingViewProps> = ({ transactions, onAddTransaction, onDeleteTransaction }) => {
+const LendingView: React.FC<LendingViewProps> = ({ transactions, onAddTransaction, onUpdateTransaction, onDeleteTransaction }) => {
   const [selectedPerson, setSelectedPerson] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -33,8 +36,14 @@ const LendingView: React.FC<LendingViewProps> = ({ transactions, onAddTransactio
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [newPersonName, setNewPersonName] = useState('');
 
+  // Edit State
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null);
+  const [editDesc, setEditDesc] = useState('');
+  const [editAmount, setEditAmount] = useState('');
+  const [editDate, setEditDate] = useState('');
+  const [editAccount, setEditAccount] = useState<AccountType>('cash');
+
   // Helper to extract person name from transaction description
-  // Matches "Lent to Name" or "Returned by Name"
   const getPersonData = (t: Transaction) => {
     if (t.category !== Category.LENDING) return null;
     const lendMatch = t.description.match(/Lent to\s+(.*)/i);
@@ -58,9 +67,6 @@ const LendingView: React.FC<LendingViewProps> = ({ transactions, onAddTransactio
         people[data.name] = { balance: 0, lastTxDate: t.date };
       }
       
-      // Calculate Balance (Positive = They owe you, Negative = You owe/Overpaid)
-      // Lend = Expense for you (money out), but Balance increases (They owe more)
-      // Recover = Income for you (money in), Balance decreases
       if (data.type === 'lend') {
         people[data.name].balance += data.amount;
       } else {
@@ -119,10 +125,48 @@ const LendingView: React.FC<LendingViewProps> = ({ transactions, onAddTransactio
     }
   }
 
+  const startEditing = (t: Transaction) => {
+    setEditingTx(t);
+    setEditDesc(t.description);
+    setEditAmount(t.amount.toString());
+    try {
+        const d = new Date(t.date);
+        const localIso = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+        setEditDate(localIso);
+    } catch (e) {
+        setEditDate(new Date().toISOString().slice(0, 16));
+    }
+    setEditAccount(t.accountId);
+  };
+
+  const saveEdit = () => {
+    if (!editingTx || !editDesc || !editAmount) return;
+    
+    const updatedTx: Transaction = {
+        ...editingTx,
+        description: editDesc,
+        amount: parseFloat(editAmount),
+        date: new Date(editDate).toISOString(),
+        accountId: editAccount
+    };
+
+    onUpdateTransaction(updatedTx);
+    setEditingTx(null);
+  };
+
+  const handleDelete = () => {
+      if (editingTx) {
+          if (confirm("Are you sure you want to delete this transaction?")) {
+              onDeleteTransaction(editingTx.id);
+              setEditingTx(null);
+          }
+      }
+  };
+
   // --- Render List View ---
   if (!selectedPerson) {
     return (
-      <div className="max-w-2xl mx-auto px-4 py-8 pb-24">
+      <div className="max-w-2xl mx-auto px-4 py-8 pb-24 relative">
          <div className="mb-6">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
               <UserMinus className="w-6 h-6 text-amber-500" />
@@ -225,7 +269,78 @@ const LendingView: React.FC<LendingViewProps> = ({ transactions, onAddTransactio
   }, 0);
 
   return (
-      <div className="max-w-2xl mx-auto px-4 py-8 pb-24">
+      <div className="max-w-2xl mx-auto px-4 py-8 pb-24 relative">
+          {/* Edit Modal */}
+         {editingTx && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm overflow-hidden">
+                    <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                        <h3 className="font-bold text-gray-900 dark:text-white">Edit Lending Info</h3>
+                        <button onClick={() => setEditingTx(null)} className="text-gray-400 hover:text-gray-600">
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
+                    <div className="p-4 space-y-3">
+                        <div>
+                            <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Description</label>
+                            <input 
+                                type="text" 
+                                value={editDesc}
+                                onChange={(e) => setEditDesc(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-transparent text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500"
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                             <div>
+                                <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Amount</label>
+                                <input 
+                                    type="number" 
+                                    value={editAmount}
+                                    onChange={(e) => setEditAmount(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-transparent text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500"
+                                />
+                             </div>
+                             <div>
+                                <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Account</label>
+                                <select
+                                    value={editAccount}
+                                    onChange={(e) => setEditAccount(e.target.value as AccountType)}
+                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-transparent text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500 text-sm"
+                                >
+                                    <option value="cash">Cash</option>
+                                    <option value="salary">Salary</option>
+                                    <option value="savings">Savings</option>
+                                </select>
+                             </div>
+                        </div>
+                         <div>
+                            <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Date & Time</label>
+                            <input 
+                                type="datetime-local" 
+                                value={editDate}
+                                onChange={(e) => setEditDate(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-transparent text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500 text-sm"
+                            />
+                        </div>
+                    </div>
+                    <div className="p-4 border-t border-gray-100 dark:border-gray-700 flex justify-between gap-3 bg-gray-50 dark:bg-gray-800/50">
+                        <button 
+                            onClick={handleDelete}
+                            className="text-red-600 hover:text-red-700 dark:text-red-400 text-sm font-medium flex items-center gap-2 px-2"
+                        >
+                            <Trash2 className="w-4 h-4" /> Delete
+                        </button>
+                        <div className="flex gap-2">
+                             <button onClick={() => setEditingTx(null)} className="px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg">Cancel</button>
+                             <button onClick={saveEdit} className="px-4 py-2 text-sm bg-amber-600 text-white hover:bg-amber-700 rounded-lg font-medium flex items-center justify-center gap-2">
+                                <Check className="w-4 h-4" /> Save
+                             </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+         )}
+
           <button 
             onClick={() => setSelectedPerson(null)}
             className="flex items-center gap-1 text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 mb-6"
@@ -314,7 +429,11 @@ const LendingView: React.FC<LendingViewProps> = ({ transactions, onAddTransactio
               {personTransactions.map(t => {
                    const data = getPersonData(t)!;
                    return (
-                       <div key={t.id} className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg group">
+                       <div 
+                        key={t.id} 
+                        onClick={() => startEditing(t)}
+                        className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg group cursor-pointer hover:border-amber-300 dark:hover:border-amber-700 transition-colors"
+                       >
                            <div className="flex items-center gap-3">
                                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${data.type === 'lend' ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'}`}>
                                    {data.type === 'lend' ? <ArrowRight className="w-4 h-4" /> : <ArrowLeft className="w-4 h-4" />}
@@ -330,9 +449,6 @@ const LendingView: React.FC<LendingViewProps> = ({ transactions, onAddTransactio
                                <span className={`font-bold text-sm ${data.type === 'lend' ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                                    Tk {t.amount.toLocaleString()}
                                </span>
-                               <button onClick={() => onDeleteTransaction(t.id)} className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                                   <Trash2 className="w-4 h-4" />
-                               </button>
                            </div>
                        </div>
                    );

@@ -61,6 +61,7 @@ import SalaryManager from './components/SalaryManager';
 import ConfigModal from './components/ConfigModal';
 import LendingView from './components/LendingView';
 import BazarView from './components/BazarView';
+import HistoryView from './components/HistoryView';
 
 const App: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -402,8 +403,6 @@ const App: React.FC = () => {
     </div>
   );
 
-  // BazarPage has been moved to components/BazarView.tsx to handle state properly
-
   const BazarReportPage = () => {
       const now = new Date();
       const currentMonth = now.getMonth();
@@ -514,96 +513,6 @@ const App: React.FC = () => {
              </div>
           </div>
       );
-  };
-
-  const HistoryPage = () => {
-    const groupedAll = useMemo(() => {
-        const groups: Record<string, Transaction[]> = {};
-        transactions.forEach(t => {
-            if (!t.date) return;
-            const dateKey = t.date.split('T')[0];
-            if (!groups[dateKey]) groups[dateKey] = [];
-            groups[dateKey].push(t);
-        });
-        return groups;
-    }, [transactions]);
-    const sortedAllDates = Object.keys(groupedAll).sort((a,b) => new Date(b).getTime() - new Date(a).getTime());
-
-    return (
-       <div className="max-w-3xl mx-auto px-4 py-8 pb-24">
-         <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              <History className="w-6 h-6 text-indigo-500" />
-              Transaction History
-            </h2>
-            <p className="text-gray-500 dark:text-gray-400 mt-1">Full log of all activities</p>
-         </div>
-
-         <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-             {transactions.length === 0 ? (
-                <div className="text-center py-12">
-                   <Receipt className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-                   <p className="text-gray-500">No transactions recorded.</p>
-                </div>
-             ) : (
-                <div className="space-y-6">
-                    {sortedAllDates.map(date => {
-                        const dayTransactions = groupedAll[date];
-                        return (
-                            <div key={date}>
-                                <div className="sticky top-0 z-10 bg-gray-50/95 dark:bg-gray-900/95 backdrop-blur-sm py-2 mb-2 border-b border-gray-100 dark:border-gray-800">
-                                    <h3 className="font-semibold text-gray-800 dark:text-gray-200">
-                                        {new Date(date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                                    </h3>
-                                </div>
-                                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-                                    {dayTransactions.map(t => (
-                                        <div key={t.id} className="p-4 border-b border-gray-100 dark:border-gray-700 last:border-0 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                                            <div className="flex items-center gap-3">
-                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                                                    t.type === 'income' ? 'bg-emerald-100 text-emerald-600' :
-                                                    t.type === 'transfer' ? 'bg-blue-100 text-blue-600' :
-                                                    'bg-rose-100 text-rose-600'
-                                                }`}>
-                                                    {t.type === 'income' ? <TrendingUp size={14} /> : 
-                                                     t.type === 'transfer' ? <ArrowRightLeft size={14} /> :
-                                                     <TrendingDown size={14} />}
-                                                </div>
-                                                <div>
-                                                    <p className="font-medium text-gray-900 dark:text-white text-sm">{t.description}</p>
-                                                    <div className="flex gap-2 text-xs text-gray-500">
-                                                        <span>{t.category}</span>
-                                                        <span>•</span>
-                                                        <span className="capitalize">{t.accountId}</span>
-                                                        {t.type === 'transfer' && t.targetAccountId && <span>→ {t.targetAccountId}</span>}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="text-right">
-                                                <span className={`block font-bold text-sm ${
-                                                     t.type === 'income' ? 'text-emerald-600' : 
-                                                     t.type === 'expense' ? 'text-rose-600' : 'text-gray-600 dark:text-gray-400'
-                                                }`}>
-                                                    {t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''} Tk {t.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                                </span>
-                                                <button 
-                                                    onClick={() => handleDeleteTransaction(t.id)}
-                                                    className="text-xs text-red-500 hover:underline mt-1 opacity-50 hover:opacity-100"
-                                                >
-                                                    Delete
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-             )}
-         </div>
-       </div>
-    );
   };
 
   const DashboardView = ({ period }: { period: 'month' | 'year' }) => {
@@ -901,8 +810,8 @@ const App: React.FC = () => {
         {activeTab === 'input' && <InputPage />}
         {activeTab === 'bazar' && <BazarView transactions={transactions} onAddTransaction={handleAddTransaction} onUpdateTransaction={handleUpdateTransaction} onDeleteTransaction={handleDeleteTransaction} />}
         {activeTab === 'bazar-report' && <BazarReportPage />}
-        {activeTab === 'lending' && <LendingView transactions={transactions} onAddTransaction={handleAddTransaction} onDeleteTransaction={handleDeleteTransaction} />}
-        {activeTab === 'history' && <HistoryPage />}
+        {activeTab === 'lending' && <LendingView transactions={transactions} onAddTransaction={handleAddTransaction} onUpdateTransaction={handleUpdateTransaction} onDeleteTransaction={handleDeleteTransaction} />}
+        {activeTab === 'history' && <HistoryView transactions={transactions} onUpdateTransaction={handleUpdateTransaction} onDeleteTransaction={handleDeleteTransaction} />}
         {activeTab === 'dashboard' && <DashboardView period={dashboardPeriod} />}
       </main>
 
