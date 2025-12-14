@@ -55,6 +55,14 @@ try {
     // Only initialize if we have a config and no apps are running
     if (config && !firebase.apps.length) {
         console.log("Initializing Firebase with stored config...");
+
+        // For Capacitor apps, we might need to modify the config
+        if (isCapacitor) {
+            // Ensure we have the correct auth domain for Capacitor
+            config.authDomain = config.authDomain || `${config.projectId}.firebaseapp.com`;
+            console.log("Using auth domain for Capacitor:", config.authDomain);
+        }
+
         firebase.initializeApp(config);
     }
 
@@ -65,11 +73,25 @@ try {
         isInitialized = true;
         console.log("Firebase initialized successfully");
 
-        // For Capacitor, initialize the Firebase Auth plugin
-        if (isCapacitor) {
-            console.log("Initializing Capacitor Firebase Auth plugin...");
-            // The plugin should automatically sync with Firebase Auth
-        }
+    if (isCapacitor) {
+      // For Capacitor, configure auth for mobile
+      if (auth) {
+        // Set persistence to LOCAL for mobile apps
+        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+
+        // Handle redirect result for mobile authentication
+        auth.getRedirectResult().then((result) => {
+            if (result.user) {
+                console.log("User signed in via redirect:", result.user.displayName);
+            }
+        }).catch((error) => {
+            console.error("Redirect result error:", error);
+        });
+
+        // Configure auth settings for Capacitor
+        console.log("Configuring Firebase Auth for Capacitor...");
+      }
+    }
     } else {
         console.log("Firebase waiting for configuration...");
     }
@@ -93,16 +115,21 @@ export const signInWithGoogle = async () => {
     const isCapacitor = !!(window as any).Capacitor;
 
     if (isCapacitor) {
-      // For mobile, use a custom OAuth flow that works with Capacitor
+      // For Capacitor mobile apps, use redirect method
+      console.log("Using redirect authentication for Capacitor...");
       const provider = new firebase.auth.GoogleAuthProvider();
       provider.addScope('profile');
       provider.addScope('email');
 
-      // Use signInWithCredential approach for mobile
-      // First, we need to get the credential from the native side
-      // For now, let's try a simpler approach - use the web flow but handle errors better
-      const result = await auth.signInWithPopup(provider);
-      return result.user;
+      try {
+        await auth.signInWithRedirect(provider);
+        // The redirect will navigate away and come back
+        // The result will be handled by getRedirectResult
+        return null;
+      } catch (redirectError) {
+        console.error("Redirect auth error:", redirectError);
+        throw redirectError;
+      }
     } else {
       // Use web SDK popup for browsers
       const provider = new firebase.auth.GoogleAuthProvider();
