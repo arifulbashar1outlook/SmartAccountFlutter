@@ -763,10 +763,12 @@ const App: React.FC = () => {
         setShowConfig(true);
         return;
       }
+      // For mobile apps, signInWithGoogle will redirect and auth state will update automatically
       await signInWithGoogle();
       setIsMenuOpen(false);
     } catch (error) {
        // Error handled in service
+       setIsMenuOpen(false);
     }
   };
 

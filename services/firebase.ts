@@ -60,6 +60,15 @@ try {
         db = firebase.firestore();
         isInitialized = true;
         console.log("Firebase initialized successfully");
+
+        // Handle redirect result for mobile authentication
+        auth.getRedirectResult().then((result) => {
+            if (result.user) {
+                console.log("User signed in via redirect:", result.user.displayName);
+            }
+        }).catch((error) => {
+            console.error("Redirect result error:", error);
+        });
     } else {
         console.log("Firebase waiting for configuration...");
     }
@@ -77,11 +86,22 @@ export const signInWithGoogle = async () => {
       alert("Firebase is not connected. Please enter your configuration in Settings.");
       throw new Error("Firebase not initialized");
   }
-  
+
   const provider = new firebase.auth.GoogleAuthProvider();
   try {
-    const result = await auth.signInWithPopup(provider);
-    return result.user;
+    // Check if we're running in Capacitor (mobile app)
+    const isCapacitor = !!(window as any).Capacitor;
+
+    if (isCapacitor) {
+      // Use redirect for mobile apps
+      await auth.signInWithRedirect(provider);
+      // Note: The redirect will reload the app, and we need to handle the result
+      return null; // Result will be handled on redirect
+    } else {
+      // Use popup for web browsers
+      const result = await auth.signInWithPopup(provider);
+      return result.user;
+    }
   } catch (error: any) {
     console.error("Error signing in", error);
     if (error.code === 'auth/unauthorized-domain') {
