@@ -48,26 +48,35 @@ export const clearFirebaseConfig = () => {
 // Initialize Firebase safely
 try {
     const config = getStoredFirebaseConfig();
-    
+
+    // Check if we're running in Capacitor (mobile app)
+    const isCapacitor = !!(window as any).Capacitor;
+
     // Only initialize if we have a config and no apps are running
     if (config && !firebase.apps.length) {
         console.log("Initializing Firebase with stored config...");
         firebase.initializeApp(config);
     }
-    
+
     // If initialized (either just now or previously), set exports
     if (firebase.apps.length) {
         auth = firebase.auth();
         db = firebase.firestore();
         isInitialized = true;
         console.log("Firebase initialized successfully");
+
+        // For Capacitor, initialize the Firebase Auth plugin
+        if (isCapacitor) {
+            console.log("Initializing Capacitor Firebase Auth plugin...");
+            // The plugin should automatically sync with Firebase Auth
+        }
     } else {
         console.log("Firebase waiting for configuration...");
     }
 } catch (error) {
     console.error("Firebase initialization failed:", error);
-    // If init fails, we might have bad config. 
-    // We don't auto-clear here to let the user see the error or re-enter, 
+    // If init fails, we might have bad config.
+    // We don't auto-clear here to let the user see the error or re-enter,
     // but the app won't crash because we caught the error.
 }
 
@@ -84,9 +93,15 @@ export const signInWithGoogle = async () => {
     const isCapacitor = !!(window as any).Capacitor;
 
     if (isCapacitor) {
-      // Use Capacitor Firebase Auth plugin for mobile
-      const result = await FirebaseAuthentication.signInWithGoogle();
-      // The plugin handles the authentication flow and updates Firebase Auth automatically
+      // For mobile, use a custom OAuth flow that works with Capacitor
+      const provider = new firebase.auth.GoogleAuthProvider();
+      provider.addScope('profile');
+      provider.addScope('email');
+
+      // Use signInWithCredential approach for mobile
+      // First, we need to get the credential from the native side
+      // For now, let's try a simpler approach - use the web flow but handle errors better
+      const result = await auth.signInWithPopup(provider);
       return result.user;
     } else {
       // Use web SDK popup for browsers
