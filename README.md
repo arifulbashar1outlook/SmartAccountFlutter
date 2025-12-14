@@ -1,51 +1,86 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# SmartSpend - Flutter Version
 
-# Run and deploy your AI Studio app
+A comprehensive financial tracking application built with Flutter. Track income, expenses, manage multiple accounts, and get AI-powered financial insights.
 
-This contains everything you need to run your app locally.
+## 📱 Features
 
-View your app in AI Studio: https://ai.studio/apps/drive/1aVWiBbL6TQ9n6JZJU2Q6VreqsQH3fzwM
+- **Transaction Management**: Income, expenses, and transfers
+- **Multiple Accounts**: Manage Cash, Bank, Mobile Money, and custom accounts
+- **Bazar Tracking**: Dedicated grocery and shopping expense tracker
+- **Lending Manager**: Track loans, repayments, and who owes you
+- **Financial Dashboard**: Monthly and yearly overview with statistics
+- **AI Insights**: Google Gemini powered financial advice
+- **Dark Mode**: Complete dark theme support
+- **Offline First**: Works offline with local storage
+- **Cloud Sync**: Optional Firebase integration
 
-## Run Locally
+## 🚀 Getting Started
 
-**Prerequisites:**  Node.js
+### Prerequisites
+- Flutter SDK 3.0 or higher
+- Dart 3.0 or higher
+- Firebase project (optional, for cloud features)
+- Google Gemini API key (optional, for AI features)
 
+### Installation
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
-# Android APK Build Workflow
+1. Navigate to the Flutter app directory:
+   ```bash
+   cd flutter_app
+   ```
 
-The project includes a GitHub Actions workflow that automatically builds an Android APK on every push to the main branch.
+2. Install dependencies:
+   ```bash
+   flutter pub get
+   ```
 
-## Features
-- ✅ Automatic APK generation
-- ✅ Firebase integration (Auth, Firestore)
-- ✅ PWA capabilities
-- ✅ Offline support
+3. Configure Firebase and Gemini:
+   - Update `lib/config/firebase_options.dart` with your Firebase credentials
+   - Add your Gemini API key to the configuration
 
-## Getting the APK
+4. Run the app:
+   ```bash
+   flutter run
+   ```
 
-1. Go to the **Actions** tab in your GitHub repository
-2. Click on the latest workflow run
-3. Download the `app-debug.apk` from the **Artifacts** section
-4. Install on your Android device
+## 📁 Project Structure
 
-## Local Development
+```
+flutter_app/
+├── lib/
+│   ├── config/          # Firebase and API configuration
+│   ├── models/          # Data models (Transaction, Account, etc.)
+│   ├── providers/       # State management with Provider
+│   ├── screens/         # Main app screens
+│   ├── services/        # Firebase, Gemini, storage services
+│   ├── widgets/         # Reusable UI widgets
+│   └── main.dart        # App entry point
+├── pubspec.yaml         # Dependencies
+└── README.md            # Flutter app documentation
+```
 
-For local Android development:
+## 🎯 Main Screens
+
+1. **Home/Input**: Add transactions and view dashboard
+2. **Bazar**: Track grocery and shopping expenses
+3. **Lending**: Manage loans and repayments
+4. **History**: View transaction history with filters
+5. **Dashboard**: Financial overview and statistics
+
+## 📦 Build for Different Platforms
+
+### Android
 ```bash
-# Install dependencies
-npm install
+flutter build apk --release
+# Output: build/app/outputs/flutter-apk/app-release.apk
+```
 
-# Build web app
-npm run build
+### iOS
+```bash
+flutter build ios --release
+```
 
-# Add Android platform
+### Web (optional)
 npx cap add android
 
 # Sync and run on device/emulator
