@@ -23,6 +23,17 @@ jobs:
         flutter-version: '3.16.0'
         channel: 'stable'
 
+    - name: Ensure Flutter project exists
+      working-directory: ./flutter_app
+      run: |
+        # If android directory is missing, create a new flutter app scaffold in-place
+        if [ ! -d "android" ]; then
+          echo "android/ folder missing — creating Flutter project scaffold..."
+          flutter create . || exit 1
+        else
+          echo "Found android/ — skipping scaffold creation"
+        fi
+
     - name: Get Flutter dependencies
       working-directory: ./flutter_app
       run: flutter pub get
