@@ -279,7 +279,7 @@ const BazarView: React.FC<BazarViewProps> = ({ transactions, onAddTransaction, o
                         >
                           <option value="cash">Cash 💵</option>
                           <option value="salary">Salary Acc 🏦</option>
-                          <option value="savings">Savings Acc 🐷</option>
+                          <option value="savings">Savings Acc 🛡️</option>
                         </select>
                         <button type="submit" className="ml-auto bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 text-sm font-medium whitespace-nowrap">
                           Add

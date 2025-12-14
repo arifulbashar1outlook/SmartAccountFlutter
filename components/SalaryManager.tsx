@@ -171,7 +171,7 @@ const SalaryManager: React.FC<SalaryManagerProps> = ({ onAddTransaction }) => {
                   >
                     <option value="cash">Cash 💵</option>
                     <option value="salary">Salary Account 🏦</option>
-                    <option value="savings">Savings Account 🐷</option>
+                    <option value="savings">Savings Account 🛡️</option>
                   </select>
                </div>
              </div>

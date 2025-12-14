@@ -3,7 +3,7 @@ import {
   Wallet, 
   TrendingUp, 
   TrendingDown, 
-  PiggyBank, 
+  ShieldCheck, 
   Trash2, 
   History,
   Bot,
@@ -1076,7 +1076,7 @@ const App: React.FC = () => {
            <SummaryCard 
             title="Savings Rate" 
             amount={summary.savingsRate} 
-            icon={PiggyBank} 
+            icon={ShieldCheck} 
             colorClass="text-amber-600 dark:text-amber-400" 
             bgClass="bg-amber-50 dark:bg-amber-900/30"
           />
