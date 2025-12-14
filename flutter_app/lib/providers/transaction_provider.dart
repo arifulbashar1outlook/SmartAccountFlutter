@@ -113,7 +113,7 @@ class TransactionProvider extends ChangeNotifier {
     }
 
     final balance = income - expenses;
-    final savingsRate = income > 0 ? (balance / income) * 100 : 0;
+    final savingsRate = income > 0 ? (balance / income) * 100 : 0.0;
 
     return FinancialSummary(
       totalIncome: income,

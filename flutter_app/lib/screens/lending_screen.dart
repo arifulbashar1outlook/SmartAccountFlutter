@@ -96,7 +96,6 @@ class _LendingScreenState extends State<LendingScreen> {
                   ),
                   const SizedBox(height: 16),
                   Row(
-                    gap: 12,
                     children: [
                       Expanded(
                         child: ElevatedButton(
@@ -107,6 +106,7 @@ class _LendingScreenState extends State<LendingScreen> {
                           child: const Text('Lend'),
                         ),
                       ),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
