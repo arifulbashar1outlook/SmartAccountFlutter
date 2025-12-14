@@ -79,15 +79,6 @@ try {
         // Set persistence to LOCAL for mobile apps
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 
-        // Handle redirect result for mobile authentication
-        auth.getRedirectResult().then((result) => {
-            if (result.user) {
-                console.log("User signed in via redirect:", result.user.displayName);
-            }
-        }).catch((error) => {
-            console.error("Redirect result error:", error);
-        });
-
         // Configure auth settings for Capacitor
         console.log("Configuring Firebase Auth for Capacitor...");
       }
@@ -117,20 +108,9 @@ export const signInWithGoogle = async () => {
     if (isCapacitor) {
       // Use Capacitor Firebase Auth plugin for native mobile authentication
       console.log("Using Capacitor Firebase Auth plugin...");
-      try {
-        const result = await FirebaseAuthentication.signInWithGoogle();
-        console.log("Capacitor auth successful:", result);
-        return result.user;
-      } catch (pluginError: any) {
-        console.error("Capacitor Firebase Auth error:", pluginError);
-        // If plugin fails, fall back to web redirect
-        console.log("Falling back to web redirect authentication...");
-        const provider = new firebase.auth.GoogleAuthProvider();
-        provider.addScope('profile');
-        provider.addScope('email');
-        await auth.signInWithRedirect(provider);
-        return null;
-      }
+      const result = await FirebaseAuthentication.signInWithGoogle();
+      console.log("Capacitor auth successful:", result);
+      return result.user;
     } else {
       // Use web SDK popup for browsers
       const provider = new firebase.auth.GoogleAuthProvider();
