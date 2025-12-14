@@ -87,48 +87,50 @@ adb install build/app/outputs/flutter-apk/app-release.apk
 ## 🔧 Configuration Before Building
 
 ### 1. Firebase Setup
-Edit `lib/config/firebase_options.dart`:
-```dart
-class DefaultFirebaseOptions {
-  static const FirebaseOptions currentPlatform = FirebaseOptions(
-    apiKey: "YOUR_API_KEY",
-    appId: "YOUR_APP_ID",
-    messagingSenderId: "YOUR_SENDER_ID",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_BUCKET",
-    databaseUrl: "YOUR_DATABASE_URL",
-    authDomain: "YOUR_AUTH_DOMAIN",
-    measurementId: "YOUR_MEASUREMENT_ID",
-  );
-}
-```
+See detailed guide: [FIREBASE_SETUP.md](FIREBASE_SETUP.md)
+
+**Quick Setup:**
+1. Create Firebase project at https://console.firebase.google.com
+2. Register your Android app
+3. Download `google-services.json` → place in `flutter_app/android/app/`
+4. Get credentials from Firebase Console
+5. Update `flutter_app/lib/config/firebase_options.dart` with:
+   - API Key
+   - App ID
+   - Sender ID
+   - Project ID
+   - Storage Bucket
 
 ### 2. Gemini API Key
-Update in the same file:
+1. Visit https://ai.google.dev/
+2. Click "Get API Key"
+3. Generate new API key
+4. Update in `flutter_app/lib/config/firebase_options.dart`:
 ```dart
-const String GEMINI_API_KEY = "YOUR_GEMINI_API_KEY";
+const String GEMINI_API_KEY = 'AIzaSyD_YOUR_ACTUAL_KEY_HERE';
 ```
 
-### 3. Android App Name & Package
-Edit `android/app/build.gradle`:
+### 3. Android Configuration
+See detailed guide: [ANDROID_CONFIG.md](ANDROID_CONFIG.md)
+
+**Quick Setup:**
+1. Package Name: Update `flutter_app/android/app/build.gradle`
 ```gradle
-android {
-    defaultConfig {
-        applicationId = "com.yourcompany.smartspend"  // Change this
-        minSdkVersion 21
-        targetSdkVersion 34
-        versionCode 1
-        versionName "1.0.0"
-    }
-}
+applicationId = "com.yourcompany.smartspend"
 ```
 
-Edit `android/app/src/main/AndroidManifest.xml`:
+2. App Name: Update `flutter_app/android/app/src/main/res/values/strings.xml`
 ```xml
-<application
-    android:label="SmartSpend"  <!-- Your app name -->
-    android:icon="@mipmap/ic_launcher">
+<string name="app_name">SmartSpend</string>
 ```
+
+3. Version Info in `build.gradle`:
+```gradle
+versionCode 1
+versionName "1.0.0"
+```
+
+4. Optional: Update app icon in `flutter_app/android/app/src/main/res/mipmap-*/`
 
 ---
 
