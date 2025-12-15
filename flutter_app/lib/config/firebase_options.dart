@@ -44,13 +44,26 @@ class DefaultFirebaseOptions {
 }
 
 /// Google Gemini AI Configuration
-/// Get your API key from: https://ai.google.dev/
-/// Steps:
-/// 1. Go to https://ai.google.dev/
-/// 2. Click "Get API Key"
-/// 3. Create a new API key
-/// 4. Paste it below
-const String GEMINI_API_KEY = 'YOUR_GEMINI_API_KEY_HERE';
+/// ⚠️ IMPORTANT: NEVER hardcode your Gemini API key!
+/// Use environment variables or a secure backend instead.
+/// 
+/// For development: Use flutter run --dart-define=GEMINI_API_KEY=your_key
+/// For production: Use GitHub Secrets or CI/CD environment variables
+///
+/// Option 1: Environment Variable (RECOMMENDED for production)
+/// Run: flutter run --dart-define=GEMINI_API_KEY=$GEMINI_API_KEY
+///
+/// Option 2: Create a .env file (for local development only)
+/// Add to .gitignore: .env
+/// Then use: flutter_dotenv package
+/// 
+/// Option 3: Secure Backend (BEST for production)
+/// Call your backend API to get a temporary token instead
+
+const String GEMINI_API_KEY = String.fromEnvironment(
+  'GEMINI_API_KEY',
+  defaultValue: '', // Empty in production without the env var
+);
 
 /// Gemini Configuration
 class GeminiConfig {
@@ -58,5 +71,18 @@ class GeminiConfig {
   static const String model = 'gemini-pro';
   static const double temperature = 0.7;
   static const int maxTokens = 1000;
+
+  /// Validate API key is set
+  static bool get isConfigured => apiKey.isNotEmpty;
+  
+  /// Check before making API calls
+  static void validateConfig() {
+    if (!isConfigured) {
+      throw Exception(
+        'Gemini API key not configured. '
+        'Run: flutter run --dart-define=GEMINI_API_KEY=your_key'
+      );
+    }
+  }
 }
 
