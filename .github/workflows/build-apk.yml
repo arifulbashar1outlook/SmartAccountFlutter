@@ -34,6 +34,22 @@ jobs:
           echo "Found android/ — skipping scaffold creation"
         fi
 
+    - name: Ensure compileSdkVersion and targetSdkVersion set to 34
+      working-directory: ./flutter_app
+      run: |
+        BUILD_FILE=android/app/build.gradle
+        if [ -f "$BUILD_FILE" ]; then
+          echo "Patching $BUILD_FILE to set compileSdkVersion/targetSdkVersion=34"
+          # Replace numeric compileSdkVersion or flutter.compileSdkVersion with 34
+          sed -i "s/compileSdkVersion [0-9]\+/compileSdkVersion 34/" $BUILD_FILE || true
+          sed -i "s/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 34/" $BUILD_FILE || true
+          sed -i "s/targetSdkVersion [0-9]\+/targetSdkVersion 34/" $BUILD_FILE || true
+          sed -i "s/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 34/" $BUILD_FILE || true
+          echo "Patched $BUILD_FILE"
+        else
+          echo "$BUILD_FILE not found — skipping patch"
+        fi
+
     - name: Get Flutter dependencies
       working-directory: ./flutter_app
       run: flutter pub get
