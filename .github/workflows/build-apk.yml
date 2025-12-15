@@ -39,7 +39,7 @@ jobs:
       run: |
         BUILD_FILE=android/app/build.gradle
         if [ -f "$BUILD_FILE" ]; then
-          python3 << 'PYTHON_EOF'
+          python3 << PYTHON_EOF
         import re
         
         with open('$BUILD_FILE', 'r') as f:
