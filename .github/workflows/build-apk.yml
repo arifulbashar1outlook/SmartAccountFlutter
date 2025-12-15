@@ -39,25 +39,41 @@ jobs:
       run: |
         BUILD_FILE=android/app/build.gradle
         if [ -f "$BUILD_FILE" ]; then
-          echo "Patching $BUILD_FILE to set compileSdkVersion/targetSdkVersion=34 and enable multidex"
-          # Replace numeric compileSdkVersion or flutter.compileSdkVersion with 34
-          sed -i "s/compileSdkVersion [0-9]\+/compileSdkVersion 34/" $BUILD_FILE || true
-          sed -i "s/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 34/" $BUILD_FILE || true
-          sed -i "s/targetSdkVersion [0-9]\+/targetSdkVersion 34/" $BUILD_FILE || true
-          sed -i "s/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 34/" $BUILD_FILE || true
-          
-          # Enable multidex support in defaultConfig if not already present
-          if ! grep -q "multiDexEnabled true" $BUILD_FILE; then
-            echo "Adding multiDexEnabled true to defaultConfig"
-            sed -i '/defaultConfig {/a\        multiDexEnabled true' $BUILD_FILE
-          fi
-          
-          # Add multidex dependency if not already present
-          if ! grep -q "androidx.multidex:multidex" $BUILD_FILE; then
-            echo "Adding multidex dependency"
-            sed -i "/dependencies {/a\\    implementation 'androidx.multidex:multidex:2.0.1'" $BUILD_FILE
-          fi
-          echo "Patched $BUILD_FILE"
+          python3 << 'PYTHON_EOF'
+        import re
+        
+        with open('$BUILD_FILE', 'r') as f:
+            content = f.read()
+        
+        # Set compileSdkVersion to 34
+        content = re.sub(r'compileSdkVersion\s+\d+', 'compileSdkVersion 34', content)
+        content = re.sub(r'compileSdkVersion\s+flutter\.compileSdkVersion', 'compileSdkVersion 34', content)
+        
+        # Set targetSdkVersion to 34
+        content = re.sub(r'targetSdkVersion\s+\d+', 'targetSdkVersion 34', content)
+        content = re.sub(r'targetSdkVersion\s+flutter\.targetSdkVersion', 'targetSdkVersion 34', content)
+        
+        # Enable multiDexEnabled in defaultConfig
+        if 'multiDexEnabled' not in content:
+          content = re.sub(r'(defaultConfig\s*\{)', r'\1\n        multiDexEnabled true', content)
+          print("Added multiDexEnabled true")
+        
+        # Add multidex dependency if not present
+        if 'androidx.multidex:multidex' not in content:
+          # Find the last closing brace of dependencies block and add before it
+          content = re.sub(
+            r'(dependencies\s*\{[^}]*?)(\n\})',
+            r"\1\n    implementation 'androidx.multidex:multidex:2.0.1'\2",
+            content,
+            flags=re.DOTALL
+          )
+          print("Added androidx.multidex:multidex dependency")
+        
+        with open('$BUILD_FILE', 'w') as f:
+          f.write(content)
+        
+        print("Patched $BUILD_FILE successfully")
+        PYTHON_EOF
         else
           echo "$BUILD_FILE not found — skipping patch"
         fi
