@@ -34,20 +34,46 @@ jobs:
           echo "Found android/ — skipping scaffold creation"
         fi
 
-    - name: Ensure compileSdkVersion and targetSdkVersion set to 34
+    - name: Ensure compileSdkVersion and targetSdkVersion set to 34, and enable multidex
       working-directory: ./flutter_app
       run: |
         BUILD_FILE=android/app/build.gradle
         if [ -f "$BUILD_FILE" ]; then
-          echo "Patching $BUILD_FILE to set compileSdkVersion/targetSdkVersion=34"
+          echo "Patching $BUILD_FILE to set compileSdkVersion/targetSdkVersion=34 and enable multidex"
           # Replace numeric compileSdkVersion or flutter.compileSdkVersion with 34
           sed -i "s/compileSdkVersion [0-9]\+/compileSdkVersion 34/" $BUILD_FILE || true
           sed -i "s/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 34/" $BUILD_FILE || true
           sed -i "s/targetSdkVersion [0-9]\+/targetSdkVersion 34/" $BUILD_FILE || true
           sed -i "s/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 34/" $BUILD_FILE || true
+          
+          # Enable multidex support in defaultConfig if not already present
+          if ! grep -q "multiDexEnabled true" $BUILD_FILE; then
+            echo "Adding multiDexEnabled true to defaultConfig"
+            sed -i '/defaultConfig {/a\        multiDexEnabled true' $BUILD_FILE
+          fi
+          
+          # Add multidex dependency if not already present
+          if ! grep -q "androidx.multidex:multidex" $BUILD_FILE; then
+            echo "Adding multidex dependency"
+            sed -i "/dependencies {/a\\    implementation 'androidx.multidex:multidex:2.0.1'" $BUILD_FILE
+          fi
           echo "Patched $BUILD_FILE"
         else
           echo "$BUILD_FILE not found — skipping patch"
+        fi
+
+    - name: Update AndroidManifest.xml for multidex
+      working-directory: ./flutter_app
+      run: |
+        MANIFEST_FILE=android/app/src/main/AndroidManifest.xml
+        if [ -f "$MANIFEST_FILE" ]; then
+          # Update application tag to use FlutterMultiDexApplication if multidex is enabled
+          if grep -q "multiDexEnabled" android/app/build.gradle; then
+            if ! grep -q "FlutterMultiDexApplication" $MANIFEST_FILE; then
+              echo "Updating AndroidManifest.xml to use MultiDex support"
+              sed -i 's/android:name=".FlutterActivity"/android:name="io.flutter.app.FlutterMultiDexApplication"/' $MANIFEST_FILE || true
+            fi
+          fi
         fi
 
     - name: Get Flutter dependencies
@@ -56,7 +82,7 @@ jobs:
 
     - name: Build APK (Debug)
       working-directory: ./flutter_app
-      run: flutter build apk --debug
+      run: flutter build apk --debug 2>&1 | tee build.log || (grep -i "multidex" build.log && flutter build apk --debug --no-multidex || exit 1)
 
     - name: Build APK (Release)
       working-directory: ./flutter_app
